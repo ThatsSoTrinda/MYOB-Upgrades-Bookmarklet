@@ -1,10 +1,222 @@
+var searchTime = 15000;
+var searchInterval = setInterval(getDocumentAndSearch, searchTime);
+
 var startTime, startTimeSet, currentTime;
-var firstRun = true;
 var running = false;
 var wasRun = false;
+var audioEnabledBool = false;
 
+var numInBatch = 0;
+var numProvisioning = 0;
+var numCompletedProvisioning = 0;
+var numFailedProvisioning = 0;
+var numPreMigrating = 0;
+var numWaitingToPreMigrate = 0;
+var numCompletedPreMigrating = 0;
+var numFailedPreMigrating = 0;
+var numBatchesCompleted = 0;
+var numLedgersCompleted = 0;
+
+var averageTimeArray = [];
+var averageTimeSum = 0;
+var averageTime = 0;
+
+var dataTable = document.getElementsByClassName("label default purple MainPage_button__2JikY")[0];
+var parentNode = document.getElementsByClassName("flx-template__body")[0];
 var runningHTML = document.createElement("div");
 var runningHTMLBaseText = `<hr /><h1>Search active</h1>`;
+
+runningHTML.setAttribute("id", "runningSearch");
+runningHTML.setAttribute("style", "text-align: center");
+runningHTML.innerHTML = runningHTMLBaseText + "<hr />";
+parentNode.insertBefore(runningHTML, dataTable);
+
+var extraOptionsDiv = document.createElement("div");
+extraOptionsDiv.setAttribute("id", "Extras");
+parentNode.insertBefore(extraOptionsDiv, runningHTML);
+
+var averageTimeMessage = "Average time: Will display after a batch is complete.";
+var averageTimeDiv = document.createElement("div");
+averageTimeDiv.innerHTML = averageTimeMessage;
+extraOptionsDiv.appendChild(averageTimeDiv);
+
+var batchesThisSessionHTML = "Completed batches (ledgers) this session: ";
+var batchesCountDiv = document.createElement("div");
+batchesCountDiv.innerHTML = batchesThisSessionHTML + numBatchesCompleted.toString() + " (" + numLedgersCompleted.toString() + ")";
+extraOptionsDiv.appendChild(batchesCountDiv);
+
+var optionsVisible = false;
+var optionsButton = document.createElement("button");
+optionsButton.innerHTML = "View Options";
+optionsButton.addEventListener("click", changeOptionsVisible);
+extraOptionsDiv.appendChild(optionsButton);
+
+var audioEnabledButton = document.createElement("button");
+var audioEnabledBool = false;
+audioEnabledButton.innerHTML = "Enable audio";
+audioEnabledButton.addEventListener("click", changeAudioEnabled);
+
+var editCountButton = document.createElement("button");
+editCountButton.addEventListener("click", editCount);
+editCountButton.innerHTML = "Edit count";
+
+var editSearchTimeButton = document.createElement("button");
+editSearchTimeButton.addEventListener("click", editSearchTime);
+editSearchTimeButton.innerHTML = "Interval";
+
+var resetAverageTimeButton = document.createElement("button");
+resetAverageTimeButton.addEventListener("click", resetAverageTimeHandler);
+resetAverageTimeButton.innerHTML = "Reset average";
+
+var clearCookiesButton = document.createElement("button");
+clearCookiesButton.addEventListener("click", deleteAllCookies);
+clearCookiesButton.innerHTML = "Reset all data";
+
+checkCookie();
+
+function changeOptionsVisible() {
+	optionsVisible = !optionsVisible;
+
+	if (optionsVisible) {
+		optionsButton.innerHTML = "Hide Options";
+		extraOptionsDiv.appendChild(audioEnabledButton);
+		extraOptionsDiv.appendChild(editCountButton);
+		extraOptionsDiv.appendChild(editSearchTimeButton);
+		extraOptionsDiv.appendChild(resetAverageTimeButton);
+		extraOptionsDiv.appendChild(clearCookiesButton);
+	} else {
+		optionsButton.innerHTML = "Show Options";
+		extraOptionsDiv.removeChild(audioEnabledButton);
+		extraOptionsDiv.removeChild(editCountButton);
+		extraOptionsDiv.removeChild(editSearchTimeButton);
+		extraOptionsDiv.removeChild(resetAverageTimeButton);
+		extraOptionsDiv.removeChild(clearCookiesButton);
+	}
+}
+
+function changeAudioEnabled() {
+    audioEnabledBool = !audioEnabledBool;
+
+    if (audioEnabledBool) {
+        audioEnabledButton.innerHTML = "Disable Audio";
+    } else {
+        audioEnabledButton.innerHTML = "Enable Audio";
+    }
+}
+
+function editCount() {
+	var editBatchesCount = 0;
+	var editLedgersCount = 0;
+
+	editBatchesCount = prompt("How many batches have you completed today?", "0");
+	if (editBatchesCount == null || editBatchesCount === "") {
+		return;
+	}
+
+	editLedgersCount = prompt("How many ledgers have you completed today?", "0");
+	if (editLedgersCount == null || editLedgersCount === "") {
+		return;
+	}
+
+	if (confirm(`Are you sure you want to continue?\n\nChanges:\nBatches: ${editBatchesCount.toString()} (Was ${numBatchesCompleted})\nLedgers: ${editLedgersCount.toString()} (Was ${numLedgersCompleted})`)) {
+		editBatchesCount = parseInt(editBatchesCount);
+		editLedgersCount = parseInt(editLedgersCount);
+		
+		numBatchesCompleted = editBatchesCount;
+		numLedgersCompleted = editLedgersCount;
+		batchesCountDiv.innerHTML = `${batchesThisSessionHTML} ${numBatchesCompleted.toString()} (${numLedgersCompleted.toString()})`;
+		
+		setCookie("batchesComplete", editBatchesCount);
+		setCookie("ledgersComplete", editLedgersCount);
+	}
+}
+
+function editSearchTime() {
+	var newSearchTime = 0;
+
+	newSearchTime = prompt("Please enter your desired search interval (in whole seconds)", `${searchTime / 1000}`);
+	if (newSearchTime == null || newSearchTime === "") {
+        return;
+	}
+	if (newSearchTime > 60) {
+        alert("That interval is invalid. Please try again.");
+        return;
+	}
+
+	newSearchTime = parseInt(newSearchTime);
+	searchTime = newSearchTime * 1000;
+	setCookie("searchInterval", searchTime);
+}
+
+function resetAverageTimeHandler() {
+	averageTimeArray = [];
+	averageTime = 0;
+	averageTimeSum = 0;
+	averageTimeMessage = "Average time: Will display after a batch is complete."
+}
+
+function setCookie(cname, cvalue) {
+	var expires = "";
+	var date = new Date();
+	var midnight = new Date(date.getFullYear(), date.getMonth(), date.getDate(), 23, 59, 59);
+	expires = "expires=" + midnight.toGMTString();
+
+	document.cookie = "Trin-" + cname + "=" + cvalue + "; " + expires + "; path=/";
+}
+
+function getCookie(cname) {
+    var name = "Trin-" + cname + "=";
+    var decodedCookie = decodeURIComponent(document.cookie);
+    var ca = decodedCookie.split(';');
+    for (var i = 0; i < ca.length; i++) {
+        var c = ca[i];
+        while (c.charAt(0) == ' ') {
+            c = c.substring(1);
+        }
+        if (c.indexOf(name) == 0) {
+            return c.substring(name.length, c.length);
+        }
+    }
+    return "";
+}
+
+function checkCookie() {
+    var CbatchesComplete = getCookie("batchesComplete");
+    var CledgersComplete = getCookie("ledgersComplete");
+    var cSearchTime = getCookie("searchInterval");
+    var CaverageTime = getCookie("averageTime");
+    var CaverageTimeArray = getCookie("averageTimeArray");
+
+    if (CbatchesComplete != "") {
+        numBatchesCompleted = cBatchesComplete;
+    }
+    if (CledgersComplete != "") {
+        numLedgersCompleted = CledgersComplete;
+    }
+    if (cSearchTime != "") {
+        searchTime = cSearchTime;
+    }
+    if (CaverageTime != "" && CaverageTimeArray != "") {
+        setAverageTime(CaverageTimeArray, CaverageTime, undefined)
+    }
+}
+
+function deleteAllCookies() {
+    document.cookie = "Trin-batchesComplete=;Expires=Thu, 01 Jan 1970 00:00:01 GMT;Path=/"
+    document.cookie = "Trin-ledgersComplete=;Expires=Thu, 01 Jan 1970 00:00:01 GMT;Path=/"
+    document.cookie = "Trin-searchInterval=;Expires=Thu, 01 Jan 1970 00:00:01 GMT;Path=/"
+    document.cookie = "Trin-averageTime=;Expires=Thu, 01 Jan 1970 00:00:01 GMT;Path=/"
+
+    batchesThisSessionCount = 0;
+    ledgersThisSessionCount = 0;
+    batchesCountDiv.innerHTML = batchesThisSessionHTML + numBatchesCompleted.toString() + " (" + numLedgersCompleted.toString() + ")";
+
+    searchTime = 15000;
+
+    setAudioEnabled(false);
+
+    resetAverageTimeHandler();
+}
 
 function setStartTime() {
 	if (running) {
@@ -16,81 +228,40 @@ function setStartTime() {
 }
 
 function getDocumentAndSearch() {
-    var provisioning = false
-    var preMigrating = false;
+    numInBatch = 0;
 
-	var numProvisioning = 0;
-	var numCompletedProvisioning = 0;
-	var numFailedProvisioning = 0;
+    numProvisioning = 0;
+	numCompletedProvisioning = 0;
+	numFailedProvisioning = 0;
 
-	var numPreMigrating = 0;
-    var numWaitingToPreMigrate = 0;
-	var numCompletedPreMigrating = 0;
-	var numFailedPreMigrating = 0;
-
-	var numInProgressText = "";
-	var numCompletedText = "";
-	var numFailedText = "";
-    var numWaitingText = "";
-	var timeMessage = "";
-
-	var currentTime = new Date();
-	var timeTaken;
+	numPreMigrating = 0;
+    numWaitingToPreMigrate = 0;
+	numCompletedPreMigrating = 0;
+	numFailedPreMigrating = 0;
 
 	var documentToSearch = document.getElementsByClassName("table-data__cell");
 
     for (var i = 0; i < documentToSearch.length; i++) {
         // Provisioning
-        if (documentToSearch[i].innerText.indexOf("Upload Ledger") > -1) {
-            if (documentToSearch[i+1].innerText.indexOf("Started") > -1
-            || documentToSearch[i+1].innerText.indexOf("In progress") > -1
-            || documentToSearch[i+1].innerText.indexOf("Completed") > -1) {
-                running = true;
-                provisioning = true;
-                setStartTime();
-                numProvisioning += 1;
-            } else if (documentToSearch[i+1].innerText.indexOf("Failed") > -1) {
-                numFailedProvisioning += 1;
-                provisioning = true;
-            }
-        } else if (documentToSearch[i].innerText.indexOf("Provisioning database") > -1) {
-            if (documentToSearch[i+1].innerText.indexOf("Started") > -1
-            || documentToSearch[i+1].innerText.indexOf("In progress") > -1) {
-                running = true;
-                provisioning = true;
-                setStartTime();
-                numProvisioning += 1;
-            } else if (documentToSearch[i+1].innerText.indexOf("Completed") > -1) {
-                numCompletedProvisioning += 1;
-            } else if (documentToSearch[i+1].innerText.indexOf("Failed") > -1) {
-                numFailedProvisioning += 1;
-            }
+        if (documentToSearch[i].innerText.indexOf("Provision database") > -1) {
+            provisionDatabase(documentToSearch[i], documentToSearch[i+1], documentToSearch[i+2]);
+        } else if (documentToSearch[i].innerText.indexOf("Pre-migration") > -1) {
+            preMigrate(documentToSearch[i], documentToSearch[i+1], documentToSearch[i+2]);
         }
-        // End Provisioning
-        // PreMigrating
-        if (documentToSearch[i].innerText.indexOf("Pre ETL migration") > -1) {
-            if (documentToSearch[i+1].innerText.indexOf("Waiting for resource") > -1 
-            || documentToSearch[i+1].innerText.indexOf("Remove from queue") > -1) {
-                running = true;
-                numWaitingToPreMigrate += 1;
-                setStartTime();
-            }
-        }
-        // End Premigrating
     }
+}
 
-    // Set the current time
+function displayText(stage) {
+    var numInProgressText = "";
+	var numCompletedText = "";
+	var numFailedText = "";
+    var numWaitingText = "";
+	var currentTime = new Date();
+
     timeTaken = calculateDuration(currentTime - startTime);
-    
-    // Is anything provisioning or premigrating?
-    if (numProvisioning == 0 && numPreMigrating == 0) {
-        running = false;
 
-    }
-
-    // Format output message
-    timeMessage = `Time elapsed: ${timeTaken}`;
-    if (provisioning) {
+    if (stage.innerText.indexOf("Provision Database") > -1) {
+        // Display the current results of the provision.
         if (numProvisioning >= 1) {
             numInProgressText = `Found ${numProvisioning.toString()} ${(numProvisioning > 1 ? 'ledgers' : 'ledger')} in progress.`;
         }
@@ -100,7 +271,15 @@ function getDocumentAndSearch() {
         if (numFailedProvisioning >= 1) {
             numFailedText = `Found ${numFailedProvisioning.toString()} ${(numFailedProvisioning > 1 ? 'ledgers' : 'ledger')} failed.`;
         }
-    } else if (preMigrating) {
+
+        runningHTML.innerHTML = 
+        `${runningHTMLBaseText}
+        ${(numFailedProvisioning > 0) ? numFailedText + '<br />' : ''}
+        ${(numProvisioning > 0) ? numInProgressText + '<br />' : ''}
+        ${(numCompletedProvisioning > 0) ? numCompletedText + '<br />' : ''}
+        Time elapsed: ${(timeTaken != '') ? timeTaken : '< 1 minute'} <hr />`;
+    } else if (stage.innerText.indexOf("Pre-migration") > -1) { 
+        // Display the current results of the pre-migration.
         if (numPreMigrating >= 1) {
             numInProgressText = `Found ${numPreMigrating.toString()} ${(numPreMigrating > 1 ? 'ledgers' : 'ledger')} in progress.`;
         }
@@ -111,24 +290,168 @@ function getDocumentAndSearch() {
             numFailedText = `Found ${numFailedPreMigrating.toString()} ${(numFailedPreMigrating > 1 ? 'ledgers' : 'ledger')} failed.`;
         }
         if (numWaitingToPreMigrate >= 1) {
-            numWaitingText = `Found ${numWaitingToPreMigrate.toString()} ${(numWaitingToPreMigrate > 1 ? 'ledgers' : 'ledger')} failed.`;
+            numWaitingText = `Found ${numWaitingToPreMigrate.toString()} ${(numWaitingToPreMigrate > 1 ? 'ledgers' : 'ledger')} waiting to begin.`;
         }
+
+        runningHTML.innerHTML = 
+        `${runningHTMLBaseText}
+        ${(numWaitingToPreMigrate > 0) ? numWaitingText + '<br />' : ''}
+        ${(numPreMigrating > 0) ? numInProgressText + '<br />' : ''}
+        ${(numFailedPreMigrating > 0) ? numFailedText + '<br />' : ''}
+        ${(numCompletedPreMigrating > 0) ? numCompletedText + '<br />' : ''}
+        Time elapsed: ${(timeTaken != '') ? timeTaken : '< 1 minute'}<hr />`;
     }
-    
-
-
-    // Display output message
-    runningHTML.innerHTML = 
-        `${runningHTMLBaseText} <br />
-        ${(numFailedProvisioning > 0) ? numFailedText : ''} <br />
-        ${(numProvisioning > 0) ? numInProgressText : ''} <br />
-        ${(numCompletedProvisioning > 0) ? numCompletedText : ''} <br />
-        ${(numWaitingToPreMigrate > 0) ? numWaitingText : ''} <br />
-        ${(timeTaken != '') ? timeMessage : ''} <hr />`;
-
-    // Alert User
 }
 
+function setAverageTime(array, avg, cTime) {
+    if (!typeof array === undefined && !typeof avg === undefined) {
+        averageTimeArray = array;
+        averageTime = avg;   
+        averageTimeMessage = `Average time: ${calculateDuration(averageTime)}`;
+        averageTimeDiv.innerHTML = averageTimeMessage;     
+    }
+    
+    if (!typeof cTime === undefined) {
+        averageTimeArray.push(cTime - startTime);
+        for (var i = 0; i < averageTimeArray.length; i++) {
+            averageTimeSum += averageTimeArray[i];
+        }
+        averageTime = (averageTimeSum / averageTimeArray.length);
+        averageTimeMessage = `Average time: ${calculateDuration(averageTime)}`;
+        averageTimeDiv.innerHTML = averageTimeMessage;
+
+        // Set cookies
+        setCookie("averageTimeArray", averageTimeArray);
+        setCookie("averageTime", averageTime)
+    }
+}
+
+function finishBatch(stage) {
+    currentTime = new Date();
+    timeMessage = `${calculateDuration(currentTime - startTime)}`;
+
+    wasRun = true;
+    startTimeSet = false;
+
+    if (stage.innerText.indexOf("Provision database") > -1) {
+        var alertMessage = `Provisioning complete.\nTime taken: ${timeMessage}`;
+        runningHTML.innerHTML = `<hr /><h1>Provisioning complete. Awaiting user input</h1><hr />`;
+        if (audioEnabled) {
+            playProvisionComplete();
+        }
+        alert(alertMessage);
+    } else if (stage.innerText.indexOf("Pre-migration") > -1) {
+        var alertMessage  = `Batch complete.\nTotal time taken: ${timeMessage}`;
+        runningHTML.innerHTML = `<hr /><h1>Batch complete. Awaiting new batch</h1><hr />`;
+        if (audioEnabled) {
+            playMigrationComplete();
+        }
+        numBatchesCompleted += 1;
+        numLedgersCompleted += numInBatch;
+        batchesCountDiv.innerHTML = batchesThisSessionHTML + numBatchesCompleted.toString() + " (" + numLedgersCompleted.toString() + ")";
+
+        setAverageTime(undefined, undefined, currentTime)
+        alert(alertMessage);
+    }
+
+
+}
+
+function provisionDatabase(stage, step, status) {
+    currentTime = new Date();
+
+    if (step.innerText.indexOf("Upload Ledger") > -1) {
+        if ((status.innerText.indexOf("Started") > -1) 
+        || (status.innerText.indexOf("In progress") > -1) 
+        || (status.innerText.indexOf("Completed") > -1)) {
+            // We've only just started this batch. Set running to true, set the start time.
+            // Start time will only be set once, even though it's called n times.
+            running = true;
+            wasRun = false;
+            setStartTime();
+
+            numInBatch += 1;
+            numProvisioning += 1;
+        }
+    } else if (step.innerText.indexOf("Provisioning database") > -1) {
+        if ((status.innerText.indexOf("Started") > -1) 
+        || (status.innerText.indexOf("In progress") > -1)) {
+            // We've only just started this batch. Set running to true, set the start time.
+            // This is duplicated from "Upload Ledger" to make sure it's caught correctly.
+            running = true;
+            wasRun = false;
+            setStartTime();
+
+            numInBatch += 1;
+            numProvisioning += 1;
+        } else if (status.innerText.indexOf("Completed") > -1) {
+            // Provisioning has completed for this ledger. Note it and move on/
+            numInBatch += 1;
+            numCompletedProvisioning += 1;
+        } else if (status.innerText.indexOf("Failed") > -1) {
+            // Provisioning has failed for this ledger. Note it and move on.
+            numInBatch += 1;
+            numFailedProvisioning += 1;
+        }
+    }
+
+        // Display status in UI.
+        displayText(stage);
+
+        // Check if: wasRun is false, and if the number in batch 
+        // is equal to the number completed + the number failed.
+        if (!wasRun && ((numCompletedProvisioning + numFailedProvisioning) === numInBatch)) {
+            finishBatch(stage);
+        }
+}
+
+function preMigrate(stage, step, status) {
+    currentTime = new Date();
+
+    if (step.innerText.indexOf("Pre ETL migration") > -1
+    || (step.innerText.indexOf("Pre migration") > -1)) {
+        if ((status.innerText.indexOf("Waiting for resource") > -1) 
+        || (status.innerText.indexOf("Remove from queue") > -1)) {
+            // Pre-migration has not yet started. Add to number waiting, and set the start time.
+            running = true;
+            wasRun = false;
+            setStartTime();
+            
+            numInBatch += 1;
+            numWaitingToPreMigrate += 1;
+        } else if (status.innerText.indexOf("Started") > -1) {
+            // Pre-migration has started. Note it and move on.
+            running = true;
+            wasRun = false;
+            setStartTime();
+
+            numInBatch += 1;
+            numPreMigrating += 1;
+        } else if (status.innerText.indexOf("In progress") > -1) {
+            // Pre-migration is in progress. Note it and move on.
+            numInBatch += 1;
+            numPreMigrating += 1;
+        } else if ((status.innerText.indexOf("Completed") > -1)
+        || (status.innerText.indexOf("Pre Access Management") > -1)) {
+            // This ledger is complete. Note it and move on.
+            numInBatch += 1;
+            numCompletedPreMigrating += 1;
+        } else if (status.innerText.indexOf("Failed") > -1) {
+            // This ledger has failed. Note it and move on.
+            numInBatch += 1;
+            numFailedPreMigrating += 1;
+        }
+
+        // Display status in UI.
+        displayText(stage);
+
+        // Check if: wasRun is false, and if the number in batch 
+        // is equal to the number completed + the number failed.
+        if (!wasRun && ((numCompletedPreMigrating + numFailedPreMigrating) === numInBatch)) {
+            finishBatch(stage);
+        }
+    }
+}
 
 function calculateDuration(timeString) {
 	var rawMS = timeString;
@@ -147,9 +470,9 @@ function calculateDuration(timeString) {
 
 	var messageToReturn = "";
 
-	if (rawDays >= 1) messageToReturn += `${rawDays} days, `;
-	if (rawHours >= 1) messageToReturn += `${rawHours} hours, `;
-	if (rawMinutes >= 1) messageToReturn += `${rawMinutes} minutes.`;
+	if (rawDays >= 1) messageToReturn += `${rawDays} ${(rawDays > 1) ? 'days' : 'day'}, `;
+	if (rawHours >= 1) messageToReturn += `${rawHours} ${(rawHours > 1) ? 'hours' : 'hour'}, `;
+	if (rawMinutes > 1) messageToReturn += `${rawMinutes} ${(rawMinutes > 1) ? 'minutes' : 'minute'}.`;
 
 	return messageToReturn;
 }
