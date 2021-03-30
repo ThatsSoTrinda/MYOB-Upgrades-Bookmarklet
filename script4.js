@@ -7,6 +7,7 @@ var wasRun = false;
 var audioEnabledBool = false;
 
 var numInBatch = 0;
+var numInBatchExpected = 0;
 var numProvisioning = 0;
 var numCompletedProvisioning = 0;
 var numFailedProvisioning = 0;
@@ -188,7 +189,7 @@ function checkCookie() {
     var CaverageTimeArray = getCookie("averageTimeArray");
 
     if (CbatchesComplete != "") {
-        numBatchesCompleted = cBatchesComplete;
+        numBatchesCompleted = CbatchesComplete;
     }
     if (CledgersComplete != "") {
         numLedgersCompleted = CledgersComplete;
@@ -229,6 +230,7 @@ function setStartTime() {
 
 function getDocumentAndSearch() {
     numInBatch = 0;
+    numInBatchExpected = 0;
 
     numProvisioning = 0;
 	numCompletedProvisioning = 0;
@@ -240,6 +242,8 @@ function getDocumentAndSearch() {
 	numFailedPreMigrating = 0;
 
 	var documentToSearch = document.getElementsByClassName("table-data__cell");
+    numInBatchExpected = (documentToSearch.length - 10) / 11;
+    console.log(numInBatchExpected);
 
     for (var i = 0; i < documentToSearch.length; i++) {
         // Provisioning
@@ -260,7 +264,7 @@ function displayText(stage) {
 
     timeTaken = calculateDuration(currentTime - startTime);
 
-    if (stage.innerText.indexOf("Provision Database") > -1) {
+    if (stage.innerText.indexOf("Provision database") > -1) {
         // Display the current results of the provision.
         if (numProvisioning >= 1) {
             numInProgressText = `Found ${numProvisioning.toString()} ${(numProvisioning > 1 ? 'ledgers' : 'ledger')} in progress.`;
@@ -274,8 +278,8 @@ function displayText(stage) {
 
         runningHTML.innerHTML = 
         `${runningHTMLBaseText}
-        ${(numFailedProvisioning > 0) ? numFailedText + '<br />' : ''}
         ${(numProvisioning > 0) ? numInProgressText + '<br />' : ''}
+        ${(numFailedProvisioning > 0) ? numFailedText + '<br />' : ''}
         ${(numCompletedProvisioning > 0) ? numCompletedText + '<br />' : ''}
         Time elapsed: ${(timeTaken != '') ? timeTaken : '< 1 minute'} <hr />`;
     } else if (stage.innerText.indexOf("Pre-migration") > -1) { 
@@ -336,14 +340,14 @@ function finishBatch(stage) {
     if (stage.innerText.indexOf("Provision database") > -1) {
         var alertMessage = `Provisioning complete.\nTime taken: ${timeMessage}`;
         runningHTML.innerHTML = `<hr /><h1>Provisioning complete. Awaiting user input</h1><hr />`;
-        if (audioEnabled) {
+        if (audioEnabledBool) {
             playProvisionComplete();
         }
         alert(alertMessage);
     } else if (stage.innerText.indexOf("Pre-migration") > -1) {
         var alertMessage  = `Batch complete.\nTotal time taken: ${timeMessage}`;
         runningHTML.innerHTML = `<hr /><h1>Batch complete. Awaiting new batch</h1><hr />`;
-        if (audioEnabled) {
+        if (audioEnabledBool) {
             playMigrationComplete();
         }
         numBatchesCompleted += 1;
@@ -359,6 +363,8 @@ function finishBatch(stage) {
 
 function provisionDatabase(stage, step, status) {
     currentTime = new Date();
+    numInBatch += 1;
+    console.log(`Number in current batch: ${numInBatch}.`);
 
     if (step.innerText.indexOf("Upload Ledger") > -1) {
         if ((status.innerText.indexOf("Started") > -1) 
@@ -370,8 +376,8 @@ function provisionDatabase(stage, step, status) {
             wasRun = false;
             setStartTime();
 
-            numInBatch += 1;
             numProvisioning += 1;
+            console.log(`Number provisioning: ${numProvisioning}.`)
         }
     } else if (step.innerText.indexOf("Provisioning database") > -1) {
         if ((status.innerText.indexOf("Started") > -1) 
@@ -382,16 +388,16 @@ function provisionDatabase(stage, step, status) {
             wasRun = false;
             setStartTime();
 
-            numInBatch += 1;
             numProvisioning += 1;
+            console.log(`Number provisioning: ${numProvisioning}.`)
         } else if (status.innerText.indexOf("Completed") > -1) {
-            // Provisioning has completed for this ledger. Note it and move on/
-            numInBatch += 1;
+            // Provisioning has completed for this ledger. Note it and move on.
             numCompletedProvisioning += 1;
+            console.log(`Number completed provisioning: ${numCompletedProvisioning}.`)
         } else if (status.innerText.indexOf("Failed") > -1) {
             // Provisioning has failed for this ledger. Note it and move on.
-            numInBatch += 1;
             numFailedProvisioning += 1;
+            console.log(`Number failed provisioning: ${numFailedProvisioning}.`)
         }
     }
 
@@ -400,13 +406,14 @@ function provisionDatabase(stage, step, status) {
 
         // Check if: wasRun is false, and if the number in batch 
         // is equal to the number completed + the number failed.
-        if (!wasRun && ((numCompletedProvisioning + numFailedProvisioning) === numInBatch)) {
+        if (!wasRun && ((numCompletedProvisioning + numFailedProvisioning) === numInBatchExpected)) {
             finishBatch(stage);
         }
 }
 
 function preMigrate(stage, step, status) {
     currentTime = new Date();
+    numInBatch += 1;
 
     if (step.innerText.indexOf("Pre ETL migration") > -1
     || (step.innerText.indexOf("Pre migration") > -1)) {
@@ -417,7 +424,6 @@ function preMigrate(stage, step, status) {
             wasRun = false;
             setStartTime();
             
-            numInBatch += 1;
             numWaitingToPreMigrate += 1;
         } else if (status.innerText.indexOf("Started") > -1) {
             // Pre-migration has started. Note it and move on.
@@ -425,20 +431,16 @@ function preMigrate(stage, step, status) {
             wasRun = false;
             setStartTime();
 
-            numInBatch += 1;
             numPreMigrating += 1;
         } else if (status.innerText.indexOf("In progress") > -1) {
             // Pre-migration is in progress. Note it and move on.
-            numInBatch += 1;
             numPreMigrating += 1;
         } else if ((status.innerText.indexOf("Completed") > -1)
         || (status.innerText.indexOf("Pre Access Management") > -1)) {
             // This ledger is complete. Note it and move on.
-            numInBatch += 1;
             numCompletedPreMigrating += 1;
         } else if (status.innerText.indexOf("Failed") > -1) {
             // This ledger has failed. Note it and move on.
-            numInBatch += 1;
             numFailedPreMigrating += 1;
         }
 
@@ -447,7 +449,7 @@ function preMigrate(stage, step, status) {
 
         // Check if: wasRun is false, and if the number in batch 
         // is equal to the number completed + the number failed.
-        if (!wasRun && ((numCompletedPreMigrating + numFailedPreMigrating) === numInBatch)) {
+        if (!wasRun && ((numCompletedPreMigrating + numFailedPreMigrating) === numInBatchExpected)) {
             finishBatch(stage);
         }
     }
