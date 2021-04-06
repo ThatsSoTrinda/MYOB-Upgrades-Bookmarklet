@@ -1,5 +1,6 @@
 var searchTime = 15000;
 var searchInterval = setInterval(getDocumentAndSearch, searchTime);
+var counterInverval = setInterval(counterHandler, 1000);
 
 var startTime, startTimeSet, currentTime;
 var running = false;
@@ -35,6 +36,11 @@ parentNode.insertBefore(runningHTML, dataTable);
 var extraOptionsDiv = document.createElement("div");
 extraOptionsDiv.setAttribute("id", "Extras");
 parentNode.insertBefore(extraOptionsDiv, runningHTML);
+
+var counterMessage = searchTime / 1000;
+var counterDiv = document.createElement("div");
+counterDiv.innerHTML = counterMessage.toString();
+extraOptionsDiv.appendChild(counterDiv);
 
 var averageTimeMessage = "Average time: Will display after a batch is complete.";
 var averageTimeDiv = document.createElement("div");
@@ -75,6 +81,17 @@ clearCookiesButton.innerHTML = "Reset all data";
 
 checkCookie();
 
+function counterHandler() {
+    if (counterMessage == 1) {
+        counterMessage = searchTime / 1000; 
+    }
+    else {
+        counterMessage -= 1;
+    }
+
+    counterDiv.innerHTML = counterMessage.toString();
+}
+
 function changeOptionsVisible() {
 	optionsVisible = !optionsVisible;
 
@@ -82,14 +99,14 @@ function changeOptionsVisible() {
 		optionsButton.innerHTML = "Hide Options";
 		extraOptionsDiv.appendChild(audioEnabledButton);
 		extraOptionsDiv.appendChild(editCountButton);
-		extraOptionsDiv.appendChild(editSearchTimeButton);
+		//extraOptionsDiv.appendChild(editSearchTimeButton);
 		extraOptionsDiv.appendChild(resetAverageTimeButton);
 		extraOptionsDiv.appendChild(clearCookiesButton);
 	} else {
 		optionsButton.innerHTML = "Show Options";
 		extraOptionsDiv.removeChild(audioEnabledButton);
 		extraOptionsDiv.removeChild(editCountButton);
-		extraOptionsDiv.removeChild(editSearchTimeButton);
+		//extraOptionsDiv.removeChild(editSearchTimeButton);
 		extraOptionsDiv.removeChild(resetAverageTimeButton);
 		extraOptionsDiv.removeChild(clearCookiesButton);
 	}
@@ -243,7 +260,7 @@ function getDocumentAndSearch() {
 
 	var documentToSearch = document.getElementsByClassName("table-data__cell");
     numInBatchExpected = (documentToSearch.length - 10) / 11;
-    console.log(numInBatchExpected);
+    console.log(`Number expected in batch: ${numInBatchExpected}`);
 
     for (var i = 0; i < documentToSearch.length; i++) {
         // Provisioning
@@ -331,10 +348,12 @@ function setAverageTime(array, avg, cTime) {
 }
 
 function finishBatch(stage) {
-    currentTime = new Date();
-    timeMessage = `${calculateDuration(currentTime - startTime)}`;
+    var currentTime = new Date();
+    var duration = currentTime - startTime;
+    var timeMessage = `${calculateDuration(duration)}`;
 
     wasRun = true;
+    running = false;
     startTimeSet = false;
 
     if (stage.innerText.indexOf("Provision database") > -1) {
@@ -354,7 +373,7 @@ function finishBatch(stage) {
         numLedgersCompleted += numInBatch;
         batchesCountDiv.innerHTML = batchesThisSessionHTML + numBatchesCompleted.toString() + " (" + numLedgersCompleted.toString() + ")";
 
-        setAverageTime(undefined, undefined, currentTime)
+        setAverageTime(undefined, undefined, duration)
         alert(alertMessage);
     }
 
@@ -363,8 +382,6 @@ function finishBatch(stage) {
 
 function provisionDatabase(stage, step, status) {
     currentTime = new Date();
-    numInBatch += 1;
-    console.log(`Number in current batch: ${numInBatch}.`);
 
     if (step.innerText.indexOf("Upload Ledger") > -1) {
         if ((status.innerText.indexOf("Started") > -1) 
@@ -377,7 +394,7 @@ function provisionDatabase(stage, step, status) {
             setStartTime();
 
             numProvisioning += 1;
-            console.log(`Number provisioning: ${numProvisioning}.`)
+            //console.log(`Number provisioning: ${numProvisioning}.`)
         }
     } else if (step.innerText.indexOf("Provisioning database") > -1) {
         if ((status.innerText.indexOf("Started") > -1) 
@@ -389,24 +406,31 @@ function provisionDatabase(stage, step, status) {
             setStartTime();
 
             numProvisioning += 1;
-            console.log(`Number provisioning: ${numProvisioning}.`)
+            //console.log(`Number provisioning: ${numProvisioning}.`)
         } else if (status.innerText.indexOf("Completed") > -1) {
             // Provisioning has completed for this ledger. Note it and move on.
             numCompletedProvisioning += 1;
-            console.log(`Number completed provisioning: ${numCompletedProvisioning}.`)
+            //console.log(`Number completed provisioning: ${numCompletedProvisioning}.`)
         } else if (status.innerText.indexOf("Failed") > -1) {
             // Provisioning has failed for this ledger. Note it and move on.
             numFailedProvisioning += 1;
-            console.log(`Number failed provisioning: ${numFailedProvisioning}.`)
+            //console.log(`Number failed provisioning: ${numFailedProvisioning}.`)
         }
     }
 
         // Display status in UI.
-        displayText(stage);
+        if (!wasRun) {
+            displayText(stage);
+        }
+
+        var batchComplete;
+        if (numCompletedProvisioning + numFailedProvisioning === numInBatchExpected) {
+            batchComplete = true;
+        }
 
         // Check if: wasRun is false, and if the number in batch 
         // is equal to the number completed + the number failed.
-        if (!wasRun && ((numCompletedProvisioning + numFailedProvisioning) === numInBatchExpected)) {
+        if (!wasRun && batchComplete) {
             finishBatch(stage);
         }
 }
@@ -433,7 +457,11 @@ function preMigrate(stage, step, status) {
 
             numPreMigrating += 1;
         } else if (status.innerText.indexOf("In progress") > -1) {
-            // Pre-migration is in progress. Note it and move on.
+            // Pre-migration has started or is in progress. Note it and move on.
+            running = true;
+            wasRun = false;
+            setStartTime();
+
             numPreMigrating += 1;
         } else if ((status.innerText.indexOf("Completed") > -1)
         || (status.innerText.indexOf("Pre Access Management") > -1)) {
@@ -445,11 +473,18 @@ function preMigrate(stage, step, status) {
         }
 
         // Display status in UI.
-        displayText(stage);
+        if (!wasRun) {
+            displayText(stage);
+        }
+
+        var batchComplete;
+        if (numCompletedPreMigrating + numFailedPreMigrating === numInBatchExpected) {
+            batchComplete = true;
+        }
 
         // Check if: wasRun is false, and if the number in batch 
         // is equal to the number completed + the number failed.
-        if (!wasRun && ((numCompletedPreMigrating + numFailedPreMigrating) === numInBatchExpected)) {
+        if (!wasRun && batchComplete) {
             finishBatch(stage);
         }
     }
