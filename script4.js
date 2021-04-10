@@ -502,7 +502,7 @@ function calculateDuration(timeString) {
 
 	if (rawDays >= 1) messageToReturn += `${rawDays} ${(rawDays > 1) ? 'days' : 'day'}, `;
 	if (rawHours >= 1) messageToReturn += `${rawHours} ${(rawHours > 1) ? 'hours' : 'hour'}, `;
-	if (rawMinutes > 1) messageToReturn += `${rawMinutes} ${(rawMinutes > 1) ? 'minutes' : 'minute'}.`;
+	if (rawMinutes >= 1) messageToReturn += `${rawMinutes} ${(rawMinutes > 1) ? 'minutes' : 'minute'}.`;
 
 	return messageToReturn;
 }
