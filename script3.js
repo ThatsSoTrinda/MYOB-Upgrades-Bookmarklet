@@ -445,7 +445,7 @@
 
 var searchTime = getCookie("searchInterval");
 if (searchTime == "") {
-	searchTime = 15000;
+    searchTime = 15000;
 }
 var searchInterval = setInterval(getDocumentAndSearch, searchTime);
 
@@ -459,7 +459,7 @@ var runningHTMLText = `<hr /><h1>Search active</h1>`;
 
 var audioEnabled = getCookie("audioEnabled");
 if (audioEnabled == "") {
-	audioEnabled = false;
+    audioEnabled = false;
 }
 
 var startTimeSet = false;
@@ -477,11 +477,11 @@ parentNode.insertBefore(extraOptionsDiv, runningHTML);
 
 var batchesThisSessionCount = getCookie("batchesComplete");
 if (batchesThisSessionCount == "") {
-	batchesThisSessionCount = 0;
+    batchesThisSessionCount = 0;
 }
 var ledgersThisSessionCount = getCookie("ledgersComplete");
 if (ledgersThisSessionCount == "") {
-	ledgersThisSessionCount = 0;
+    ledgersThisSessionCount = 0;
 }
 
 
@@ -495,18 +495,44 @@ var averageTimeSum = 0;
 
 var averageTimeAvg = getCookie("averageTime");
 if (averageTimeAvg = "") {
-	averageTimeAvg = 0;
+    averageTimeAvg = 0;
 }
 var averageTimeMessage = "Average time: Will display after a batch is complete.";
 var averageTimeDiv = document.createElement("div");
 averageTimeDiv.innerHTML = averageTimeMessage;
 extraOptionsDiv.appendChild(averageTimeDiv);
 
+
 var optionsVisible = false;
 var optionsButton = document.createElement("button");
 optionsButton.innerHTML = "View Options";
 optionsButton.addEventListener("click", changeOptionsVisible);
 extraOptionsDiv.appendChild(optionsButton);
+
+var upgradeDiv = document.createElement("div");
+upgradeDiv.innerHTML = "<br /><b>This version is no longer supported. Upgrade <a href='https://trinda.dev/myob/'>here</a>.</b>";
+extraOptionsDiv.appendChild(upgradeDiv);
+
+
+
+
+
+//extraOptionsDiv.appendChild(audioEnabledButton);
+
+/*var audioCheckbox = document.createElement("input");
+var audioCheckboxLabel = document.createElement("label");
+audioCheckbox.setAttribute("type", "checkbox");
+audioCheckbox.setAttribute("value", "yes");
+audioCheckbox.setAttribute("id", "enableAudio");
+audioCheckboxLabel.setAttribute("for", "enableAudio");
+audioCheckboxLabel.appendChild(
+  document.createTextNode("Enable audio cue on completion")
+);
+
+extraOptionsDiv.appendChild(audioCheckbox);
+extraOptionsDiv.appendChild(audioCheckboxLabel);*/
+
+
 
 var audioEnabledButton = document.createElement("button");
 var audioEnabledBool = false;
@@ -535,134 +561,141 @@ var clearCookiesButton = document.createElement("button");
 clearCookiesButton.addEventListener("click", deleteAllCookies);
 clearCookiesButton.innerHTML = "Reset script data";
 
+
+
+/*var ledgersThisSessionHTML = "Completed ledgers this session: ";
+var ledgersCountDiv = document.createElement("div");
+ledgersCountDiv.innerHTML = ledgersThisSessionHTML + ledgersThisSessionCount.toString();
+extraOptionsDiv.appendChild(ledgersCountDiv);*/
+
 function resetAverageTimeHandler() {
-	averageTimeArray = [];
-	averageTimeAvg = 0;
-	averageTimeSum = 0;
-	averageTimeMessage = "Average time: Will display after a batch is complete."
+  averageTimeArray = [];
+  averageTimeAvg = 0;
+  averageTimeSum = 0;
+  averageTimeMessage = "Average time: Will display after a batch is complete."
 }
 
 function reloadPageHandler() {
-	reloadPageAfterCompletion = !reloadPageAfterCompletion;
+  reloadPageAfterCompletion = !reloadPageAfterCompletion;
 
-	if (reloadPageAfterCompletion) {
-    	reloadPageAfterCompletionButton.innerHTML = "Don't reload page after completion";
-	} else {
-    	reloadPageAfterCompletionButton.innerHTML = "Reload page after completion";
-	}  
-	setCookie("reloadPage", reloadPageAfterCompletion);
+  if (reloadPageAfterCompletion) {
+    reloadPageAfterCompletionButton.innerHTML = "Don't reload page after completion";
+  } else {
+    reloadPageAfterCompletionButton.innerHTML = "Reload page after completion";
+  }  
+  setCookie("reloadPage", reloadPageAfterCompletion);
 }
 
 function reloadPageChange() {
     if (reloadPageAfterCompletion) {
         reloadPageAfterCompletionButton.innerHTML = "Don't reload page after completion";
-	} else {
+      } else {
         reloadPageAfterCompletionButton.innerHTML = "Reload page after completion";
-	} 
+      } 
 }
 
 
 function editSearchTime() {
-	var newSearchTime = 0;
+  var newSearchTime = 0;
 
-	newSearchTime = prompt("Please enter your desired search interval (in whole seconds)", `${searchTime / 1000}`);
-	if (newSearchTime == null || newSearchTime === "") {
-    	return;
-	}
-	if (newSearchTime > 60) {
-    	alert("That interval is invalid. Please try again.");
-    	return;
-	}
+  newSearchTime = prompt("Please enter your desired search interval (in whole seconds)", `${searchTime / 1000}`);
+  if (newSearchTime == null || newSearchTime === "") {
+    return;
+  }
+  if (newSearchTime > 60) {
+    alert("That interval is invalid. Please try again.");
+    return;
+  }
 
-	newSearchTime = parseInt(newSearchTime);
-	searchTime = newSearchTime * 1000;
-	setCookie("searchInterval", searchTime);
+  newSearchTime = parseInt(newSearchTime);
+  searchTime = newSearchTime * 1000;
+  setCookie("searchInterval", searchTime);
 }
 
 function changeAudioEnabled() {
-	audioEnabledBool = !audioEnabledBool;
-	setCookie("audioEnabled", audioEnabledBool);
+  audioEnabledBool = !audioEnabledBool;
+  setCookie("audioEnabled", audioEnabledBool);
 
-	if (audioEnabledBool) {
-    	audioEnabledButton.innerHTML = "Disable Audio";
-	} else {
-		audioEnabledButton.innerHTML = "Enable Audio";
-	}
+  if (audioEnabledBool) {
+    audioEnabledButton.innerHTML = "Disable Audio";
+  } else {
+    audioEnabledButton.innerHTML = "Enable Audio";
+  }
 }
 
 function setAudioEnabled() {
     if (audioEnabledBool) {
-		audioEnabledButton.innerHTML = "Disable Audio";
-	} else {
+        audioEnabledButton.innerHTML = "Disable Audio";
+      } else {
         audioEnabledButton.innerHTML = "Enable Audio";
-	}
+      }
 }
 
 function changeOptionsVisible() {
-	optionsVisible = !optionsVisible;
+  optionsVisible = !optionsVisible;
 
-	if (optionsVisible) {
-		optionsButton.innerHTML = "Hide Options";
-		extraOptionsDiv.appendChild(editCountButton);
-		extraOptionsDiv.appendChild(audioEnabledButton);
-		extraOptionsDiv.appendChild(editSearchTimeButton);
-		extraOptionsDiv.appendChild(resetAverageTimeButton);
-		extraOptionsDiv.appendChild(reloadPageAfterCompletionButton);
-		extraOptionsDiv.appendChild(clearCookiesButton);
-	} else {
-		optionsButton.innerHTML = "Show Options";
-		extraOptionsDiv.removeChild(editCountButton);
-		extraOptionsDiv.removeChild(audioEnabledButton);
-		extraOptionsDiv.removeChild(editSearchTimeButton);
-		extraOptionsDiv.removeChild(resetAverageTimeButton);
-		extraOptionsDiv.removeChild(reloadPageAfterCompletionButton);
-		extraOptionsDiv.removeChild(clearCookiesButton);
-	}
+  if (optionsVisible) {
+    optionsButton.innerHTML = "Hide Options";
+    extraOptionsDiv.appendChild(editCountButton);
+    extraOptionsDiv.appendChild(audioEnabledButton);
+    extraOptionsDiv.appendChild(editSearchTimeButton);
+    extraOptionsDiv.appendChild(resetAverageTimeButton);
+    extraOptionsDiv.appendChild(reloadPageAfterCompletionButton);
+    extraOptionsDiv.appendChild(clearCookiesButton);
+  } else {
+    optionsButton.innerHTML = "Show Options";
+    extraOptionsDiv.removeChild(editCountButton);
+    extraOptionsDiv.removeChild(audioEnabledButton);
+    extraOptionsDiv.removeChild(editSearchTimeButton);
+    extraOptionsDiv.removeChild(resetAverageTimeButton);
+    extraOptionsDiv.removeChild(reloadPageAfterCompletionButton);
+    extraOptionsDiv.removeChild(clearCookiesButton);
+  }
 }
 
 function editCount() {
-	var editBatchesCount = 0;
-	var editLedgersCount = 0;
+  var editBatchesCount = 0;
+  var editLedgersCount = 0;
 
-	editBatchesCount = prompt("How many batches have you completed today?", "0");
-	if (editBatchesCount == null || editBatchesCount === "") {
-		return;
-	}
+  editBatchesCount = prompt("How many batches have you completed today?", "0");
+  if (editBatchesCount == null || editBatchesCount === "") {
+    return;
+  }
+  editLedgersCount = prompt("How many ledgers have you completed today?", "0");
+  if (editLedgersCount == null || editLedgersCount === "") {
+    return;
+  }
 
-	editLedgersCount = prompt("How many ledgers have you completed today?", "0");
-	if (editLedgersCount == null || editLedgersCount === "") {
-		return;
-	}
-
-	if (confirm(`Are you sure you want to continue?\n\nChanges:\nBatches: ${editBatchesCount.toString()} (Was ${batchesThisSessionCount})\nLedgers: ${editLedgersCount.toString()} (Was ${ledgersThisSessionCount})`)) {
-		editBatchesCount = parseInt(editBatchesCount);
-		editLedgersCount = parseInt(editLedgersCount);
-		
-		batchesThisSessionCount = editBatchesCount;
-		ledgersThisSessionCount = editLedgersCount;
-		batchesCountDiv.innerHTML = batchesThisSessionHTML + batchesThisSessionCount.toString() + " (" + ledgersThisSessionCount.toString() + ")";
-		
-		setCookie("batchesComplete", editBatchesCount);
-		setCookie("ledgersComplete", editLedgersCount);
-	}
+  if (confirm(`Are you sure you want to continue?\n\nChanges:\nBatches: ${editBatchesCount.toString()} (Was ${batchesThisSessionCount})\nLedgers: ${editLedgersCount.toString()} (Was ${ledgersThisSessionCount})`)) {
+    editBatchesCount = parseInt(editBatchesCount);
+    editLedgersCount = parseInt(editLedgersCount);
+    
+    batchesThisSessionCount = editBatchesCount;
+    ledgersThisSessionCount = editLedgersCount;
+    batchesCountDiv.innerHTML = batchesThisSessionHTML + batchesThisSessionCount.toString() + " (" + ledgersThisSessionCount.toString() + ")";
+    
+    setCookie("batchesComplete", editBatchesCount);
+    setCookie("ledgersComplete", editLedgersCount);
+  }
 }
 
 function setStartTime() {
-	if (running || provisioning) {
-		if (startTimeSet == false && wasRun == false) {
-			startTime = new Date();
-			startTimeSet = true;
-		}
-	}
+  if (running || provisioning) {
+    if (startTimeSet == false && wasRun == false) {
+      startTime = new Date();
+      startTimeSet = true;
+    }
+  }
 }
 
 function setCookie(cname, cvalue) {
-	var expires = "";
-	var date = new Date();
-	var midnight = new Date(date.getFullYear(), date.getMonth(), date.getDate(), 23, 59, 59);
-	expires = "expires=" + midnight.toGMTString();
+    //Set expiry to tomorrow at midnight, local time
+    var d = new Date();
+    d.setDate(d.getDate() + 1);
+    d.setHours(0,0,0,0);
+    var expires = "expires=" + d.toGMTString();
 
-	document.cookie = "Trin-" + cname + "=" + cvalue + "; " + expires + "; path=/";
+    document.cookie = "Trin-" + cname + "=" + cvalue + ";" + expires + ";path=/";
 }
 
 function getCookie(cname) {
@@ -737,110 +770,123 @@ function deleteAllCookies() {
 }
 
 function getDocumentAndSearch() {
-	var numProvisioning = 0;
-	var numPreMigrating = 0;
-	var numComplete = 0;
-	var numUploading = 0;
-	var numInProgress = 0;
-	var numWaiting = 0;
+  var numProvisioning = 0;
+  var numPreMigrating = 0;
+  var numComplete = 0;
+  var numUploading = 0;
+  var numInProgress = 0;
+  var numWaiting = 0;
 
-	var documentToSearch = document.getElementsByClassName("table-data__cell");
+  var documentToSearch = document.getElementsByClassName("table-data__cell");
 
-	for (var i = 0; i < documentToSearch.length; i++) {
-		if (documentToSearch[i].innerText.indexOf("Waiting for resource") > -1) {
-			numWaiting += 1;
-		}
+  for (var i = 0; i < documentToSearch.length; i++) {
+    if (documentToSearch[i].innerText.indexOf("Waiting for resource") > -1) {
+      numWaiting += 1;
+    }
+    if (documentToSearch[i].innerText.indexOf("Provision database") > -1) {
+      numProvisioning += 1;
+      if (numWaiting === 0) {
+        provisioningDB(documentToSearch);
+      }
+    }
+    if (documentToSearch[i].innerText.indexOf("Pre-migration") > -1) {
+      numPreMigrating += 1;
+      preMigrating(documentToSearch);
+    }
+    if (documentToSearch[i].innerText.indexOf("Upload Ledger") > -1) {
+      numUploading += 1;
+    }
+    if (documentToSearch[i].innerText.indexOf("Completed") > -1) {
+      numComplete += 1;
+    }
+    if (documentToSearch[i].innerText.indexOf("Failed") > -1) {
+      if (!(documentToSearch[i].innerText.indexOf("Failed_") > -1)) {
+        numComplete += 1;
+      }
+    }
+    if (documentToSearch[i].innerText.indexOf("In progress") > -1) {
+      numInProgress += 1;
+    }
+    /*if (documentToSearch[i].innerText.indexOf("Manual Rollback") > -1) {
+      for (var j = 0; j < documentToSearch.length; j++) {
+        if (documentToSearch[j].innerText.indexOf("Failed") > -1) {
+          numComplete -= 1;
+        }
+      }
+    }*/
+  }
 
-		if (documentToSearch[i].innerText.indexOf("Provision database") > -1) {
-			numProvisioning += 1;
-			if (numWaiting === 0) {
-				provisioningDB(documentToSearch);
-			}
-		}
-		
-		if (documentToSearch[i].innerText.indexOf("Pre-migration") > -1) {
-			numPreMigrating += 1;
-			preMigrating(documentToSearch);
-		}
+  currentTime = new Date();
+  var timeElapsed = currentTime - startTime;
+  var timeMessage = `${calculateDuration(timeElapsed)}`;
+//  var timeMessage = `${timeDiffCalc(currentTime, startTime)}`;
 
-		if (documentToSearch[i].innerText.indexOf("Upload Ledger") > -1) {
-			numUploading += 1;
-		}
+  
 
-		if (documentToSearch[i].innerText.indexOf("Completed") > -1) {
-			numComplete += 1;
-		}
+  if (numProvisioning === numComplete && numUploading === 0 && numInProgress === 0 && provisioning && !wasRun) {
+    // Provisioning complete. Alert the user, and wait for input
+      if (audioEnabledBool) {
+        playProvisionComplete();
+      }
+    var alertMessage = `Provisioning complete.\nTime taken: ${timeMessage}`;
+    alert(alertMessage);
+    runningHTML.innerHTML = `<hr /><h1>Provisioning complete. Awaiting user input</h1><hr />`;
+    provisioning = false;
+    startTimeSet = false;
+    wasRun = true;
+  }
 
-		if (documentToSearch[i].innerText.indexOf("Failed") > -1) {
-			// Handler for that time when preprod ledger names started with 
-			// "Failed_" and broke the script.
-			if (!(documentToSearch[i].innerText.indexOf("Failed_") > -1)) {
-				numComplete += 1;
-			}
-		}
+  if (numPreMigrating === numComplete && numUploading === 0 && numInProgress === 0 && running && !wasRun) {
 
-		if (documentToSearch[i].innerText.indexOf("In progress") > -1) {
-			numInProgress += 1;
-		}
-	}
+    averageTimeArray.push(currentTime - startTime);
+    averageTimeSum = 0;
+    averageTimeAvg = 0;
 
-	currentTime = new Date();
-	var timeElapsed = currentTime - startTime;
-	var timeMessage = `${calculateDuration(timeElapsed)}`;
+    // Premigration complete. Alert the user and wait for input.
+    if (audioEnabledBool) {
+      playMigrationComplete();
+    }
 
-	if (numProvisioning === numComplete && numUploading === 0 && numInProgress === 0 && provisioning && !wasRun) {
-		if (audioEnabledBool) {
-			playProvisionComplete();
-		}
+    for (var i = 0; i < averageTimeArray.length; i++) {
+      averageTimeSum += averageTimeArray[i];
+    }
+    averageTimeAvg = (averageTimeSum / averageTimeArray.length);
 
-		var alertMessage = `Provisioning complete.\nTime taken: ${timeMessage}`;
-		alert(alertMessage);
-		runningHTML.innerHTML = `<hr /><h1>Provisioning complete. Awaiting user input</h1><hr />`;
-		provisioning = false;
-		startTimeSet = false;
-		wasRun = true;
-	}
+    
+    setAverageTime(averageTimeAvg);
+    setCookie("averageTime", averageTimeAvg);
 
-	if (numPreMigrating === numComplete && numUploading === 0 && numInProgress === 0 && running && !wasRun) {
-		averageTimeArray.push(currentTime - startTime);
-		averageTimeSum = 0;
-		averageTimeAvg = 0;
+    
+    runningHTML.innerHTML = `<hr /><h1>Batch complete. Awaiting new batch</h1><hr />`;
+    var alertMessage = `Batch complete. \nTotal time taken: ${timeMessage}`;
+    if (reloadPageAfterCompletion) {
+      alertMessage += `\n\n\nTHIS PAGE WILL RELOAD WHEN YOU CLICK OKAY`;
+    }
+    alert(alertMessage);
+    if (reloadPageAfterCompletion) {
+      location.reload();
+    }
+    running = false;
+    startTimeSet = false;
+    wasRun = true;
+    batchesThisSessionCount += 1;
+    ledgersThisSessionCount += numComplete;
+    setCookie("batchesComplete", batchesThisSessionCount);
+    setCookie("ledgersComplete", ledgersThisSessionCount);
+    batchesCountDiv.innerHTML = batchesThisSessionHTML + batchesThisSessionCount.toString() + " (" + ledgersThisSessionCount.toString() + ")";
 
-		if (audioEnabledBool) {
-			playMigrationComplete();
-		}
 
-		for (var i = 0; i < averageTimeArray.length; i++) {
-			averageTimeSum += averageTimeArray[i];
-		}
-		averageTimeAvg = (averageTimeSum / averageTimeArray.length);
+    //ledgersCountDiv.innerHTML = ledgersThisSessionHTML + ledgersThisSessionCount.toString();
+  }
 
-		setAverageTime(averageTimeAvg);
-		setCookie("averageTime", averageTimeAvg);
-
-		runningHTML.innerHTML = `<hr /><h1>Batch complete. Awaiting new batch</h1><hr />`;
-		var alertMessage = `Batch complete. \nTotal time taken: ${timeMessage}`;
-		if (reloadPageAfterCompletion) {
-			alertMessage += `\n\n\nTHIS PAGE WILL RELOAD WHEN YOU CLICK OKAY`;
-		}
-		alert(alertMessage);
-		if (reloadPageAfterCompletion) {
-			location.reload();
-		}
-		running = false;
-		startTimeSet = false;
-		wasRun = true;
-		batchesThisSessionCount += 1;
-		ledgersThisSessionCount += numComplete;
-		setCookie("batchesComplete", batchesThisSessionCount);
-		setCookie("ledgersComplete", ledgersThisSessionCount);
-		batchesCountDiv.innerHTML = batchesThisSessionHTML + batchesThisSessionCount.toString() + " (" + ledgersThisSessionCount.toString() + ")";
-	}
+  /*if (!provisioning && !running && numUploading == 0) {
+    runningHTML.innerHTML = `<hr /><h1>Awaiting input...</h1></hr>`;
+  }*/
 }
 
 function setAverageTime(average) {
     if (average == 0) {
-		break;
+
     }
 
     averageTimeMessage = `Average time: ${calculateDuration(average)}`;
@@ -993,6 +1039,48 @@ function preMigrating(document) {
     timeMessage +
     "<hr />";
   }
+}
+
+function timeDiffCalc(endDate, startDate) {
+  let diffInMilliseconds = Math.abs(endDate - startDate) / 1000;
+
+  // Calc days
+  const days = Math.floor(diffInMilliseconds / 86400);
+  diffInMilliseconds -= days * 86400;
+
+  // Calc hours
+  const hours = Math.floor(diffInMilliseconds / 3600) % 24;
+  diffInMilliseconds -= hours * 3600;
+
+  // Calc minutes
+  const minutes = Math.floor(diffInMilliseconds / 60) % 60;
+  diffInMilliseconds -= minutes * 60;
+
+  const seconds = diffInMilliseconds / 60;
+
+  let difference = "";
+  if (days > 0) {
+    difference += days === 1 ? `${days} day, ` : `${days} days, `;
+  }
+
+  if (hours > 0) {
+    difference +=
+      hours === 0 || hours === 1 ? `${hours} hour, ` : `${hours} hours, `;
+  }
+
+  if (minutes == 1) {
+    difference += `${minutes} minute `;
+  } else {
+    difference += `${minutes} minutes `;
+  }
+  
+  /*if (seconds == 1) {
+    difference += `${seconds} second`;
+  } else {
+    difference += `${seconds} seconds`;
+  }*/
+
+  return difference;
 }
 
 function calculateDuration(timeString) {

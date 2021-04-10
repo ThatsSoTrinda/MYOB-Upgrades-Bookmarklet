@@ -6,9 +6,12 @@ var startTime, startTimeSet, currentTime;
 var running = false;
 var wasRun = false;
 var audioEnabledBool = false;
+var batchComplete = false;
+var lastStageCompleted = "";
 
 var numInBatch = 0;
-var numInBatchExpected = 0;
+var numDebug;
+var numInBatchSet = false;
 var numProvisioning = 0;
 var numCompletedProvisioning = 0;
 var numFailedProvisioning = 0;
@@ -67,10 +70,6 @@ var editCountButton = document.createElement("button");
 editCountButton.addEventListener("click", editCount);
 editCountButton.innerHTML = "Edit count";
 
-var editSearchTimeButton = document.createElement("button");
-editSearchTimeButton.addEventListener("click", editSearchTime);
-editSearchTimeButton.innerHTML = "Interval";
-
 var resetAverageTimeButton = document.createElement("button");
 resetAverageTimeButton.addEventListener("click", resetAverageTimeHandler);
 resetAverageTimeButton.innerHTML = "Reset average";
@@ -99,14 +98,12 @@ function changeOptionsVisible() {
 		optionsButton.innerHTML = "Hide Options";
 		extraOptionsDiv.appendChild(audioEnabledButton);
 		extraOptionsDiv.appendChild(editCountButton);
-		//extraOptionsDiv.appendChild(editSearchTimeButton);
 		extraOptionsDiv.appendChild(resetAverageTimeButton);
 		extraOptionsDiv.appendChild(clearCookiesButton);
 	} else {
 		optionsButton.innerHTML = "Show Options";
 		extraOptionsDiv.removeChild(audioEnabledButton);
 		extraOptionsDiv.removeChild(editCountButton);
-		//extraOptionsDiv.removeChild(editSearchTimeButton);
 		extraOptionsDiv.removeChild(resetAverageTimeButton);
 		extraOptionsDiv.removeChild(clearCookiesButton);
 	}
@@ -136,7 +133,7 @@ function editCount() {
 		return;
 	}
 
-	if (confirm(`Are you sure you want to continue?\n\nChanges:\nBatches: ${editBatchesCount.toString()} (Was ${numBatchesCompleted})\nLedgers: ${editLedgersCount.toString()} (Was ${numLedgersCompleted})`)) {
+	if (confirm(`Are you sure you want to continue?\n\nChanges:\nBatches: ${editBatchesCount.toString()} (Was ${numBatchesCompleted.toString()})\nLedgers: ${editLedgersCount.toString()} (Was ${numLedgersCompleted.toString()})`)) {
 		editBatchesCount = parseInt(editBatchesCount);
 		editLedgersCount = parseInt(editLedgersCount);
 		
@@ -147,23 +144,6 @@ function editCount() {
 		setCookie("batchesComplete", editBatchesCount);
 		setCookie("ledgersComplete", editLedgersCount);
 	}
-}
-
-function editSearchTime() {
-	var newSearchTime = 0;
-
-	newSearchTime = prompt("Please enter your desired search interval (in whole seconds)", `${searchTime / 1000}`);
-	if (newSearchTime == null || newSearchTime === "") {
-        return;
-	}
-	if (newSearchTime > 60) {
-        alert("That interval is invalid. Please try again.");
-        return;
-	}
-
-	newSearchTime = parseInt(newSearchTime);
-	searchTime = newSearchTime * 1000;
-	setCookie("searchInterval", searchTime);
 }
 
 function resetAverageTimeHandler() {
@@ -222,7 +202,6 @@ function checkCookie() {
 function deleteAllCookies() {
     document.cookie = "Trin-batchesComplete=;Expires=Thu, 01 Jan 1970 00:00:01 GMT;Path=/"
     document.cookie = "Trin-ledgersComplete=;Expires=Thu, 01 Jan 1970 00:00:01 GMT;Path=/"
-    document.cookie = "Trin-searchInterval=;Expires=Thu, 01 Jan 1970 00:00:01 GMT;Path=/"
     document.cookie = "Trin-averageTime=;Expires=Thu, 01 Jan 1970 00:00:01 GMT;Path=/"
 
     batchesThisSessionCount = 0;
@@ -246,12 +225,10 @@ function setStartTime() {
 }
 
 function getDocumentAndSearch() {
-    numInBatch = 0;
-    numInBatchExpected = 0;
-
     numProvisioning = 0;
 	numCompletedProvisioning = 0;
 	numFailedProvisioning = 0;
+    numDebug = 0;
 
 	numPreMigrating = 0;
     numWaitingToPreMigrate = 0;
@@ -259,17 +236,35 @@ function getDocumentAndSearch() {
 	numFailedPreMigrating = 0;
 
 	var documentToSearch = document.getElementsByClassName("table-data__cell");
-    numInBatchExpected = (documentToSearch.length - 10) / 11;
-    console.log(`Number expected in batch: ${numInBatchExpected}`);
 
     for (var i = 0; i < documentToSearch.length; i++) {
         // Provisioning
-        if (documentToSearch[i].innerText.indexOf("Provision database") > -1) {
+        if (documentToSearch[i].innerText.indexOf("Provision database") > -1
+        || (documentToSearch[i].innerText.indexOf("Pre-requisite validation") > -1)) {
             provisionDatabase(documentToSearch[i], documentToSearch[i+1], documentToSearch[i+2]);
-        } else if (documentToSearch[i].innerText.indexOf("Pre-migration") > -1) {
+            numDebug += 1;
+            if (!numInBatchSet) {
+                numInBatch += 1;
+            }
+        }
+        // Pre-migrating
+        else if (documentToSearch[i].innerText.indexOf("Pre-migration") > -1) {
             preMigrate(documentToSearch[i], documentToSearch[i+1], documentToSearch[i+2]);
+            numDebug += 1;
+            if (!numInBatchSet) {
+                numInBatch += 1;
+            }
         }
     }
+
+    if (numInBatch > 0 && numInBatch == numDebug) {
+        console.log(`Number in batch: ${numInBatch}.`);
+        numInBatchSet = true;
+    } else {
+        numInBatch = 0;
+        numInBatchSet = false;
+    }
+
 }
 
 function displayText(stage) {
@@ -324,27 +319,14 @@ function displayText(stage) {
     }
 }
 
-function setAverageTime(array, avg, cTime) {
-    if (!typeof array === undefined && !typeof avg === undefined) {
-        averageTimeArray = array;
-        averageTime = avg;   
-        averageTimeMessage = `Average time: ${calculateDuration(averageTime)}`;
-        averageTimeDiv.innerHTML = averageTimeMessage;     
-    }
-    
-    if (!typeof cTime === undefined) {
-        averageTimeArray.push(cTime - startTime);
+function setAverageTime(cTime) {
+        averageTimeArray.push(cTime);
         for (var i = 0; i < averageTimeArray.length; i++) {
             averageTimeSum += averageTimeArray[i];
         }
         averageTime = (averageTimeSum / averageTimeArray.length);
         averageTimeMessage = `Average time: ${calculateDuration(averageTime)}`;
         averageTimeDiv.innerHTML = averageTimeMessage;
-
-        // Set cookies
-        setCookie("averageTimeArray", averageTimeArray);
-        setCookie("averageTime", averageTime)
-    }
 }
 
 function finishBatch(stage) {
@@ -355,6 +337,8 @@ function finishBatch(stage) {
     wasRun = true;
     running = false;
     startTimeSet = false;
+    numInBatchSet = false;
+    batchComplete = false;
 
     if (stage.innerText.indexOf("Provision database") > -1) {
         var alertMessage = `Provisioning complete.\nTime taken: ${timeMessage}`;
@@ -373,15 +357,19 @@ function finishBatch(stage) {
         numLedgersCompleted += numInBatch;
         batchesCountDiv.innerHTML = batchesThisSessionHTML + numBatchesCompleted.toString() + " (" + numLedgersCompleted.toString() + ")";
 
-        setAverageTime(undefined, undefined, duration)
+        numInBatch = 0;
+
+        setAverageTime(duration)
         alert(alertMessage);
     }
-
-
 }
 
 function provisionDatabase(stage, step, status) {
     currentTime = new Date();
+
+    if (stage == undefined || step == undefined || status == undefined) {
+        return;
+    }
 
     if (step.innerText.indexOf("Upload Ledger") > -1) {
         if ((status.innerText.indexOf("Started") > -1) 
@@ -396,6 +384,14 @@ function provisionDatabase(stage, step, status) {
             numProvisioning += 1;
             //console.log(`Number provisioning: ${numProvisioning}.`)
         }
+    } else if ((step.innerText.indexOf("Validating business details") > -1)
+    || (step.innerText.indexOf("Validating subscription") > -1)) { 
+        // Handle the new thing that was put in on my week off -.-
+        running = true;
+        wasRun = false;
+        setStartTime();
+
+        numProvisioning += 1;
     } else if (step.innerText.indexOf("Provisioning database") > -1) {
         if ((status.innerText.indexOf("Started") > -1) 
         || (status.innerText.indexOf("In progress") > -1)) {
@@ -406,15 +402,12 @@ function provisionDatabase(stage, step, status) {
             setStartTime();
 
             numProvisioning += 1;
-            //console.log(`Number provisioning: ${numProvisioning}.`)
         } else if (status.innerText.indexOf("Completed") > -1) {
             // Provisioning has completed for this ledger. Note it and move on.
             numCompletedProvisioning += 1;
-            //console.log(`Number completed provisioning: ${numCompletedProvisioning}.`)
         } else if (status.innerText.indexOf("Failed") > -1) {
             // Provisioning has failed for this ledger. Note it and move on.
             numFailedProvisioning += 1;
-            //console.log(`Number failed provisioning: ${numFailedProvisioning}.`)
         }
     }
 
@@ -423,21 +416,21 @@ function provisionDatabase(stage, step, status) {
             displayText(stage);
         }
 
-        var batchComplete;
-        if (numCompletedProvisioning + numFailedProvisioning === numInBatchExpected) {
+        if ((numCompletedProvisioning + numFailedProvisioning === numInBatch) && numInBatchSet) {
+            console.log(`Num completed: ${numCompletedProvisioning}\nNum failed: ${numFailedProvisioning}\nNum in Batch: ${numInBatch}`);
             batchComplete = true;
         }
 
         // Check if: wasRun is false, and if the number in batch 
         // is equal to the number completed + the number failed.
         if (!wasRun && batchComplete) {
+            lastStageCompleted = "Provision database"
             finishBatch(stage);
         }
 }
 
 function preMigrate(stage, step, status) {
     currentTime = new Date();
-    numInBatch += 1;
 
     if (step.innerText.indexOf("Pre ETL migration") > -1
     || (step.innerText.indexOf("Pre migration") > -1)) {
@@ -477,14 +470,14 @@ function preMigrate(stage, step, status) {
             displayText(stage);
         }
 
-        var batchComplete;
-        if (numCompletedPreMigrating + numFailedPreMigrating === numInBatchExpected) {
+        if ((numCompletedPreMigrating + numFailedPreMigrating === numInBatch) && numInBatchSet) {
             batchComplete = true;
         }
 
         // Check if: wasRun is false, and if the number in batch 
         // is equal to the number completed + the number failed.
         if (!wasRun && batchComplete) {
+            lastStageCompleted = "Pre-migration";
             finishBatch(stage);
         }
     }
